@@ -14,8 +14,8 @@ Build a complete, production-ready, SEO-optimized mortgage website for Alta Mort
 **Approach:** Pixel-perfect clone of loanDepot's layout structure, rebranded with Alta's identity. Proven conversion patterns from loanDepot; visually distinct brand.
 
 **Phased delivery:**
-- **Phase 1:** Homepage, Navigation/Footer, Loan Programs, About, Contact/Pre-Approval Form, Mortgage Calculator, Rates page, Utah/county landing pages, full SEO infrastructure.
-- **Phase 2:** Learning Center/Blog, First-Time Homebuyer page, Home Search, additional calculators, city-level pages, mobile app section.
+- **Phase 1:** Homepage, Navigation/Footer, Loan Programs, About, Contact/Lead Capture Form, Full Mortgage Application (/apply/), Mortgage Calculator, Rates page, Utah/county landing pages, API routes (CRM integration + email notifications), full SEO infrastructure.
+- **Phase 2:** Learning Center/Blog, First-Time Homebuyer page, Home Search, additional calculators, city-level pages, mobile app section, admin dashboard for submissions.
 
 ---
 
@@ -101,6 +101,7 @@ Wordmark: "Alta Mortgage Group"
 /utah/ogden/                     → City page (Phase 2)
 /utah/layton/                    → City page (Phase 2)
 /utah/bountiful/                 → City page (Phase 2)
+/apply/                          → Full mortgage application (multi-step 1003-style)
 /privacy/                        → Privacy policy
 /terms/                          → Terms of service
 /licensing/                      → State licensing info
@@ -276,6 +277,7 @@ src/
 │   ├── rates/page.tsx
 │   ├── about/page.tsx
 │   ├── contact/page.tsx
+│   ├── apply/page.tsx              → Full mortgage application
 │   ├── utah/
 │   │   ├── page.tsx
 │   │   ├── weber-county/page.tsx
@@ -285,6 +287,9 @@ src/
 │   ├── licensing/page.tsx
 │   ├── accessibility/page.tsx
 │   ├── sitemap.ts
+│   ├── api/
+│   │   ├── leads/route.ts          → Lead capture endpoint
+│   │   └── applications/route.ts   → Full application endpoint
 │   └── robots.ts
 ├── components/
 │   ├── layout/
@@ -310,7 +315,15 @@ src/
 │   ├── forms/
 │   │   ├── pre-approval-form.tsx
 │   │   ├── contact-form.tsx
-│   │   └── mini-lead-form.tsx
+│   │   ├── mini-lead-form.tsx
+│   │   └── mortgage-application/
+│   │       ├── application-wizard.tsx    → Multi-step wrapper with progress bar
+│   │       ├── step-loan-info.tsx
+│   │       ├── step-personal-info.tsx
+│   │       ├── step-employment.tsx
+│   │       ├── step-assets.tsx
+│   │       ├── step-declarations.tsx
+│   │       └── step-review.tsx
 │   ├── ui/                     → shadcn/ui components
 │   │   ├── button.tsx
 │   │   ├── card.tsx
@@ -333,6 +346,10 @@ src/
 │   ├── calculator-utils.ts     → Mortgage math functions
 │   ├── rates-data.ts           → Static rates JSON
 │   ├── seo.ts                  → Metadata helpers, schema generators
+│   ├── crm.ts                  → altamortgagecrm.net API integration
+│   ├── email.ts                → Nodemailer SMTP email notifications
+│   ├── db.ts                   → SQLite fallback storage for submissions
+│   ├── schemas.ts              → Zod schemas for lead + application validation
 │   └── utils.ts                → General utilities
 ├── styles/
 │   └── globals.css             → Tailwind directives, CSS custom properties
@@ -344,7 +361,132 @@ src/
 
 ---
 
-## 8. Responsive Behavior
+## 8. Lead Capture & Loan Application System
+
+### 8.1 Lead Capture (Quick Form)
+
+Appears in multiple locations: homepage CTA section, floating mobile bar, exit-intent modal, sidebar on content pages, dedicated `/contact/` page.
+
+**Fields:**
+- Full Name (required)
+- Email (required)
+- Phone (required)
+- Loan Purpose: Purchase / Refinance / Home Equity / Cash-Out (required)
+- Estimated Loan Amount (optional, dropdown ranges)
+- Preferred Contact Method: Phone / Email / Text (optional)
+- Best Time to Call (optional)
+
+**Behavior:**
+- Client-side validation via Zod
+- On submit: POST to `/api/leads` → forwards to altamortgagecrm.net API + sends email notification
+- Success state: "Thank you! A loan specialist will contact you within 24 hours."
+- Error state: Retry prompt with preserved form data
+- UTM parameter capture (source, medium, campaign) stored with lead
+- Page URL and timestamp captured automatically
+
+### 8.2 Full Mortgage Application (/apply/)
+
+Dedicated page at `/apply/` — multi-step form mirroring a simplified 1003 Uniform Residential Loan Application. 6 steps with progress indicator.
+
+**Step 1 — Loan Information:**
+- Loan Purpose (Purchase / Refinance / Home Equity)
+- Property Type (Single Family / Condo / Townhome / Multi-Family / Manufactured)
+- Property Use (Primary Residence / Second Home / Investment)
+- Estimated Purchase Price or Property Value
+- Desired Loan Amount
+- Down Payment Amount (purchase only)
+- Current Loan Balance (refinance only)
+
+**Step 2 — Personal Information:**
+- First Name, Middle Name, Last Name, Suffix
+- Date of Birth
+- SSN (optional, with security notice — stored encrypted)
+- Marital Status
+- Phone, Email
+- Current Address (street, city, state, zip)
+- Years at Current Address
+- Previous Address (if < 2 years at current)
+- Housing Status (Own / Rent / Other)
+- Monthly Housing Payment
+
+**Step 3 — Employment & Income:**
+- Employment Status (Employed / Self-Employed / Retired / Other)
+- Employer Name
+- Job Title
+- Years in Current Position
+- Monthly Gross Income
+- Previous Employer (if < 2 years at current)
+- Other Income Sources (type + monthly amount, repeatable)
+
+**Step 4 — Assets & Liabilities:**
+- Bank Accounts (institution, type, approximate balance — repeatable)
+- Monthly Debt Payments:
+  - Auto Loans
+  - Student Loans
+  - Credit Card Minimum Payments
+  - Child Support / Alimony
+  - Other
+- Estimated Credit Score Range (dropdown: Excellent 740+ / Good 700-739 / Fair 660-699 / Below 660 / Not Sure)
+
+**Step 5 — Declarations:**
+- Are you a US citizen? (Yes / Permanent Resident / Other)
+- Have you had a bankruptcy in the past 7 years?
+- Have you had a foreclosure in the past 7 years?
+- Are there any outstanding judgments against you?
+- Is any part of the down payment borrowed?
+- Will you occupy as primary residence?
+- Are you a veteran or active military? (triggers VA loan info)
+- First-time homebuyer? (triggers FTHB program info)
+
+**Step 6 — Review & Submit:**
+- Summary of all entered information (editable — click section to go back)
+- Consent checkbox: "I authorize Alta Mortgage Group to verify the information provided and pull a credit report."
+- E-signature: typed name + date
+- Submit button
+
+**Application Behavior:**
+- Progress saved to localStorage between steps (resume if browser closed)
+- Each step validates before allowing "Next"
+- Back button preserves all data
+- On submit: POST to `/api/applications` → forwards to altamortgagecrm.net API + sends email notification with application summary
+- SSN field: masked input (***-**-1234), transmitted over HTTPS only, never stored in localStorage, encrypted at rest if stored server-side
+- Success state: "Application received! Your reference number is ALT-XXXXX. We'll be in touch within 1 business day."
+- PDF generation: server-side generates a PDF summary of the application for email attachment
+
+### 8.3 Backend API Routes
+
+```
+/api/leads          POST → Validate → Forward to altamortgagecrm.net → Send email notification → Return success
+/api/applications   POST → Validate → Forward to altamortgagecrm.net → Send email notification w/ PDF → Return reference number
+/api/admin/leads    GET  → List leads (protected, future admin dashboard)
+/api/admin/apps     GET  → List applications (protected, future admin dashboard)
+```
+
+**CRM Integration (altamortgagecrm.net):**
+- API endpoint URL configurable via environment variable: `CRM_API_URL`
+- API key/token configurable via: `CRM_API_KEY`
+- Webhook-style POST with JSON payload
+- Retry logic: 3 attempts with exponential backoff on failure
+- Local SQLite fallback: if CRM is unreachable, store submission locally and queue for retry
+
+**Email Notifications:**
+- Configurable via environment variables: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `NOTIFICATION_EMAIL`
+- Lead notification: subject "New Lead — [Name] — [Loan Purpose]", body with all lead fields
+- Application notification: subject "New Application — [Name] — ALT-XXXXX", body with summary + PDF attachment
+- Uses Nodemailer for SMTP delivery
+
+### 8.4 Data Security
+
+- All forms served over HTTPS only
+- SSN encrypted with AES-256 before any storage
+- No sensitive data in URL parameters
+- CSRF protection on all form endpoints
+- Rate limiting on submission endpoints (5 per minute per IP)
+- Input sanitization against XSS/injection
+
+---
+
+## 9. Responsive Behavior
 
 - **Mobile-first** approach
 - Breakpoints: sm (640px), md (768px), lg (1024px), xl (1280px)
@@ -392,5 +534,6 @@ src/
 - Mobile app promotion section
 - Live rate API integration
 - User accounts / loan portal
+- Admin dashboard for viewing leads/applications
 - Chat widget
 - A/B testing infrastructure
