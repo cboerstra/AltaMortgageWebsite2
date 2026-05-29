@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "passenger": "node app.js",
+    "deploy:build": "npm ci --include=dev && npm run build && npm prune --omit=dev",
     "lint": "eslint"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
