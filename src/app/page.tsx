@@ -1,14 +1,32 @@
+import { Hero } from "@/components/home/hero";
+import { ProductCards } from "@/components/home/product-cards";
+import { RateTeaser } from "@/components/home/rate-teaser";
+import { LocalExpertise } from "@/components/home/local-expertise";
+import { ToolsGrid } from "@/components/home/tools-grid";
+import { Testimonials } from "@/components/home/testimonials";
+import { WhyAlta } from "@/components/home/why-alta";
+import { CTASection } from "@/components/home/cta-section";
+import { generateOrganizationSchema, generateLocalBusinessSchema } from "@/lib/seo";
+
 export default function HomePage() {
   return (
-    <main id="main-content" className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-[#003087]">Alta Mortgage Group</h1>
-        <p className="mt-4 text-[#6B7280] text-lg">Your Trusted Utah Mortgage Partner</p>
-        <div className="mt-8 flex gap-4 justify-center">
-          <button className="bg-[#00A86B] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#00c77b] transition-colors">Get Pre-Approved</button>
-          <button className="border-2 border-[#003087] text-[#003087] px-6 py-3 rounded-lg font-medium hover:bg-[#003087] hover:text-white transition-colors">Calculate Payment</button>
-        </div>
-      </div>
-    </main>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(generateOrganizationSchema()) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(generateLocalBusinessSchema()) }}
+      />
+      <Hero />
+      <ProductCards />
+      <RateTeaser />
+      <LocalExpertise />
+      <ToolsGrid />
+      <Testimonials />
+      <WhyAlta />
+      <CTASection />
+    </>
   );
 }
