@@ -16,7 +16,7 @@ interface LogoProps {
 export function Logo({
   className = "",
   variant = "default",
-  height = 40,
+  height = 80,
 }: LogoProps) {
   return (
     <Link
