@@ -1,18 +1,46 @@
 import Link from "next/link";
+import Image from "next/image";
 
-export function Logo({ className = "" }: { className?: string }) {
+interface LogoProps {
+  /** Tailwind classes applied to the outer link */
+  className?: string;
+  /**
+   * Visual variant:
+   * - "default" — original brand colors (use on light backgrounds)
+   * - "white"   — inverted to pure white via CSS filter (use on dark backgrounds)
+   */
+  variant?: "default" | "white";
+  /** Pixel height of the logo image. Width scales proportionally (≈1.62:1). */
+  height?: number;
+}
+
+export function Logo({
+  className = "",
+  variant = "default",
+  height = 40,
+}: LogoProps) {
+  // The source SVG has a viewBox of 1549.92 × 954.93 → aspect ratio ≈ 1.623
+  const width = Math.round(height * 1.623);
+
   return (
-    <Link href="/" className={`flex items-center gap-2 ${className}`} aria-label="Alta Mortgage Group Home">
-      <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <path d="M18 2L32 30H4L18 2Z" fill="#003087" opacity="0.2" />
-        <path d="M18 8L28 28H8L18 8Z" fill="#003087" opacity="0.4" />
-        <path d="M18 14L24 26H12L18 14Z" fill="#003087" />
-        <path d="M18 2L20 6L18 8L16 6L18 2Z" fill="#00A86B" />
-      </svg>
-      <div className="flex flex-col leading-none">
-        <span className="text-lg font-bold text-navy tracking-tight">Alta</span>
-        <span className="text-xs font-normal text-navy-light tracking-wide">Mortgage Group</span>
-      </div>
+    <Link
+      href="/"
+      className={`inline-flex items-center ${className}`}
+      aria-label="Alta Mortgage Group Home"
+    >
+      <Image
+        src="/logo.svg"
+        alt="Alta Mortgage Group"
+        width={width}
+        height={height}
+        priority
+        className={
+          variant === "white"
+            ? "h-auto w-auto brightness-0 invert"
+            : "h-auto w-auto"
+        }
+        style={{ height: `${height}px` }}
+      />
     </Link>
   );
 }
