@@ -1,4 +1,5 @@
 import { Shield, Award, MapPin, Star } from "lucide-react";
+import { COMPANY } from "@/lib/constants";
 
 const stats = [
   { icon: Shield, value: "15+", label: "Years Experience" },
@@ -29,7 +30,7 @@ export function WhyAlta() {
         </div>
 
         <div className="mt-10 flex flex-wrap justify-center gap-6 items-center text-sm text-text-muted">
-          <span className="border border-border px-4 py-2 rounded-full">NMLS# XXXXXX</span>
+          <span className="border border-border px-4 py-2 rounded-full">NMLS# {COMPANY.nmlsId}</span>
           <span className="border border-border px-4 py-2 rounded-full">Equal Housing Opportunity</span>
           <span className="border border-border px-4 py-2 rounded-full">Utah Licensed</span>
         </div>

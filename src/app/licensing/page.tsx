@@ -29,6 +29,10 @@ export default function LicensingPage() {
           <p className="mt-3 text-text-muted leading-relaxed">
             <strong className="text-text">NMLS ID:</strong> {COMPANY.nmlsId}
           </p>
+          <p className="mt-1 text-text-muted leading-relaxed">
+            <strong className="text-text">Utah State License:</strong>{" "}
+            {COMPANY.stateLicenseId}
+          </p>
           <p className="mt-3 text-text-muted leading-relaxed">
             The NMLS is a system created by the Conference of State Bank
             Supervisors (CSBS) and the American Association of Residential
