@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 
 interface LogoProps {
   /** Tailwind classes applied to the outer link */
@@ -19,27 +18,19 @@ export function Logo({
   variant = "default",
   height = 40,
 }: LogoProps) {
-  // The source SVG has a viewBox of 1549.92 × 954.93 → aspect ratio ≈ 1.623
-  const width = Math.round(height * 1.623);
-
   return (
     <Link
       href="/"
       className={`inline-flex items-center ${className}`}
       aria-label="Alta Mortgage Group Home"
     >
-      <Image
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
         src="/logo.svg"
         alt="Alta Mortgage Group"
-        width={width}
         height={height}
-        priority
-        className={
-          variant === "white"
-            ? "h-auto w-auto brightness-0 invert"
-            : "h-auto w-auto"
-        }
-        style={{ height: `${height}px` }}
+        className={variant === "white" ? "brightness-0 invert" : ""}
+        style={{ height: `${height}px`, width: "auto" }}
       />
     </Link>
   );
