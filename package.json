@@ -5,6 +5,7 @@
   "scripts": {
     "start": "next start",
     "passenger": "node app.js",
+    "build": "next build",
     "deploy:build": "npm ci --include=dev && next build && npm prune --omit=dev",
     "lint": "eslint"
   },
