@@ -9,7 +9,7 @@ interface LogoProps {
    * - "white"   — inverted to pure white via CSS filter (use on dark backgrounds)
    */
   variant?: "default" | "white";
-  /** Pixel height of the logo image. Width scales proportionally (≈1.62:1). */
+  /** Pixel height of the logo image. Width scales proportionally. */
   height?: number;
 }
 
@@ -26,7 +26,7 @@ export function Logo({
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/logo.svg"
+        src="/logo.jpg"
         alt="Alta Mortgage Group"
         height={height}
         className={variant === "white" ? "brightness-0 invert" : ""}
