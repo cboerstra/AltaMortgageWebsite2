@@ -1,6 +1,17 @@
 # --------------------------------------------------------------------------
-# Disable ModSecurity (WAF). Fixes 64KB-response 403 errors on cPanel hosts.
+# AGGRESSIVE BYPASS FOR /_next/static/ PATHS
+# These contain randomly-named chunk files that ModSecurity sometimes
+# misreads as suspicious. Disable all security/cache layers for them.
 # --------------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Disable ModSecurity entirely for Next.js static assets
+    <IfModule mod_security2.c>
+        SecRuleEngine Off
+    </IfModule>
+</IfModule>
+
 <IfModule mod_security.c>
     SecFilterEngine Off
     SecFilterScanPOST Off
@@ -9,12 +20,23 @@
     SecRuleEngine Off
 </IfModule>
 
+# Try to disable ModSecurity per-location for static chunks
+<LocationMatch "/_next/static/">
+    <IfModule mod_security2.c>
+        SecRuleEngine Off
+    </IfModule>
+</LocationMatch>
+
+<FilesMatch "\.(css|js|woff2?|ttf|otf|eot|svg|png|jpg|jpeg|gif|webp|ico)$">
+    <IfModule mod_security2.c>
+        SecRuleEngine Off
+    </IfModule>
+</FilesMatch>
+
 # --------------------------------------------------------------------------
 # DISABLE LITESPEED CACHE FOR THIS APP.
 # Hostinger uses LiteSpeed which aggressively caches responses, INCLUDING
-# 503 errors during deploys. This caching causes "formatting broken" issues
-# because LiteSpeed serves stale 503s for /_next/static/chunks/*.css and *.js
-# even after the real files exist on disk.
+# 503 errors during deploys.
 # --------------------------------------------------------------------------
 <IfModule LiteSpeed>
     CacheDisable public /
@@ -22,9 +44,7 @@
     RewriteRule .* - [E=Cache-Control:no-cache]
 </IfModule>
 
-# Belt-and-suspenders: tell ANY caching layer (Cloudflare, browser, etc.)
-# to revalidate static chunks every time. Next.js fingerprints these
-# filenames so cache invalidation works automatically.
+# Belt-and-suspenders: tell ANY caching layer to revalidate static chunks.
 <IfModule mod_headers.c>
     <FilesMatch "^_next/static/chunks/.+">
         Header set Cache-Control "no-cache, must-revalidate"

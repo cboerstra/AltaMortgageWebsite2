@@ -160,4 +160,19 @@
   h4 {
     @apply text-xl font-semibold;
   }
+
+  /* Force select dropdowns to render with readable contrast.
+     Without this, the native option list inherits transparent/white from
+     the parent and ends up white-on-white in some browsers. */
+  select {
+    background-color: white;
+    color: #1A1A2E;
+  }
+  option {
+    background-color: white;
+    color: #1A1A2E;
+  }
+  option:disabled {
+    color: #6B7280;
+  }
 }
