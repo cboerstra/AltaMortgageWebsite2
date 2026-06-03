@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { leadSchema } from "@/lib/schemas";
-import { forwardToCRM } from "@/lib/crm";
-import { sendLeadNotification } from "@/lib/email";
-import { insertLead, updateDeliveryStatus } from "@/lib/db";
+import { forwardToCRM, splitName, LOAN_TYPE_LABELS } from "@/lib/crm";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,41 +15,34 @@ export async function POST(request: NextRequest) {
     }
 
     const lead = result.data;
-    const timestamp = new Date().toISOString();
+    const { firstName, lastName } = splitName(lead.name);
 
-    // 1. Save to database FIRST so we never lose a lead, even if CRM/email fail.
-    const leadId = await insertLead({
-      name: lead.name,
+    // Build a readable note from the extra form fields for the CRM activity log.
+    const messageParts: string[] = [];
+    if (lead.estimatedAmount) messageParts.push(`Estimated amount: ${lead.estimatedAmount}`);
+    if (typeof body.timeline === "string") messageParts.push(`Timeline: ${body.timeline}`);
+    if (typeof body.propertyType === "string") messageParts.push(`Property type: ${body.propertyType}`);
+    if (typeof body.propertyZip === "string") messageParts.push(`Property ZIP: ${body.propertyZip}`);
+    if (typeof body.firstTimeBuyer === "string") messageParts.push(`First-time buyer: ${body.firstTimeBuyer}`);
+    if (lead.preferredContact) messageParts.push(`Preferred contact: ${lead.preferredContact}`);
+    if (lead.bestTimeToCall) messageParts.push(`Best time to call: ${lead.bestTimeToCall}`);
+    if (lead.source) messageParts.push(`Page: ${lead.source}`);
+
+    const crmResult = await forwardToCRM({
+      firstName,
+      lastName,
       email: lead.email,
       phone: lead.phone,
-      loanPurpose: lead.loanPurpose,
-      estimatedAmount: lead.estimatedAmount,
-      preferredContact: lead.preferredContact,
-      bestTimeToCall: lead.bestTimeToCall,
-      propertyType: (body.propertyType as string | undefined) ?? undefined,
-      propertyZip: (body.propertyZip as string | undefined) ?? undefined,
-      firstTimeBuyer: (body.firstTimeBuyer as string | undefined) ?? undefined,
-      timeline: (body.timeline as string | undefined) ?? undefined,
-      source: lead.source,
-      utm: lead.utm as Record<string, string> | undefined,
-      rawPayload: body,
+      source: "contact_form",
+      message: messageParts.join("\n") || undefined,
+      smsConsent: false,
+      loanType: LOAN_TYPE_LABELS[lead.loanPurpose] || lead.loanPurpose,
     });
-
-    // 2. Forward to CRM and send email in parallel.
-    const [crmResult, emailResult] = await Promise.all([
-      forwardToCRM({ type: "lead", data: lead, timestamp }),
-      sendLeadNotification({ ...lead, timestamp }),
-    ]);
-
-    // 3. Persist delivery outcomes so failed deliveries can be retried.
-    if (leadId) {
-      await updateDeliveryStatus("leads", leadId, crmResult, emailResult);
-    }
 
     return NextResponse.json({
       success: true,
       message: "Lead received successfully",
-      persisted: leadId !== null,
+      forwarded: crmResult.status === "sent",
     });
   } catch (err) {
     console.error("/api/leads error:", err);

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { applicationSchema } from "@/lib/schemas";
-import { forwardToCRM } from "@/lib/crm";
-import { sendApplicationNotification } from "@/lib/email";
+import { forwardToCRM, LOAN_TYPE_LABELS } from "@/lib/crm";
 import { generateRefNumber } from "@/lib/utils";
-import { insertApplication, updateDeliveryStatus } from "@/lib/db";
+
+function money(n: number | undefined): string {
+  if (typeof n !== "number") return "—";
+  return `$${n.toLocaleString("en-US")}`;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,74 +20,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const application = result.data;
+    const app = result.data;
     const referenceNumber = generateRefNumber();
-    const timestamp = new Date().toISOString();
 
-    // Redact SSN for CRM (send only last 4 if provided)
-    const crmData = {
-      ...application,
-      ssn: application.ssn ? `***-**-${application.ssn.slice(-4)}` : undefined,
-      referenceNumber,
-      timestamp,
-    };
-
-    // 1. Save to database FIRST. SSN is stored only as last 4 — never full.
-    const ssnLast4 = application.ssn ? application.ssn.slice(-4) : undefined;
-    const payloadForStorage = { ...application, ssn: undefined, referenceNumber };
-
-    const applicationId = await insertApplication({
-      refNumber: referenceNumber,
-      loanPurpose: application.loanPurpose,
-      propertyType: application.propertyType,
-      propertyUse: application.propertyUse,
-      purchasePrice: application.purchasePrice,
-      loanAmount: application.loanAmount,
-      downPayment: application.downPayment,
-      currentBalance: application.currentBalance,
-      firstName: application.firstName,
-      middleName: application.middleName,
-      lastName: application.lastName,
-      suffix: application.suffix,
-      dateOfBirth: application.dateOfBirth,
-      ssnLast4,
-      maritalStatus: application.maritalStatus,
-      phone: application.phone,
-      email: application.email,
-      currentStreet: application.currentAddress?.street,
-      currentCity: application.currentAddress?.city,
-      currentState: application.currentAddress?.state,
-      currentZip: application.currentAddress?.zip,
-      yearsAtAddress: application.yearsAtAddress,
-      housingStatus: application.housingStatus,
-      monthlyHousingPayment: application.monthlyHousingPayment,
-      employmentStatus: application.employmentStatus,
-      employerName: application.employerName,
-      jobTitle: application.jobTitle,
-      yearsAtJob: application.yearsAtJob,
-      monthlyIncome: application.monthlyIncome,
-      creditScoreRange: application.creditScoreRange,
-      usCitizen: application.usCitizen,
-      veteran: application.veteran,
-      firstTimeBuyer: application.firstTimeBuyer,
-      rawPayload: payloadForStorage,
-    });
-
-    // 2. Forward to CRM and send email in parallel.
-    const [crmResult, emailResult] = await Promise.all([
-      forwardToCRM({ type: "application", data: crmData, timestamp }),
-      sendApplicationNotification(crmData, referenceNumber),
-    ]);
-
-    // 3. Persist delivery outcomes.
-    if (applicationId) {
-      await updateDeliveryStatus("applications", applicationId, crmResult, emailResult);
+    // Summarize the application for the CRM activity log.
+    // NOTE: SSN is intentionally NEVER sent to the CRM endpoint.
+    const messageLines: string[] = [
+      `FULL MORTGAGE APPLICATION — Ref ${referenceNumber}`,
+      ``,
+      `Loan purpose: ${app.loanPurpose}`,
+      `Property type: ${app.propertyType}`,
+      `Property use: ${app.propertyUse}`,
+      `Purchase price: ${money(app.purchasePrice)}`,
+      `Loan amount: ${money(app.loanAmount)}`,
+    ];
+    if (typeof app.downPayment === "number") messageLines.push(`Down payment: ${money(app.downPayment)}`);
+    if (typeof app.currentBalance === "number") messageLines.push(`Current balance: ${money(app.currentBalance)}`);
+    if (app.currentAddress) {
+      messageLines.push(
+        `Address: ${app.currentAddress.street}, ${app.currentAddress.city}, ${app.currentAddress.state} ${app.currentAddress.zip}`
+      );
     }
+    messageLines.push(`Employment: ${app.employmentStatus}`);
+    if (app.employerName) messageLines.push(`Employer: ${app.employerName}`);
+    messageLines.push(`Monthly income: ${money(app.monthlyIncome)}`);
+    messageLines.push(`Credit range: ${app.creditScoreRange}`);
+    if (app.veteran) messageLines.push(`Veteran: yes`);
+    if (app.firstTimeBuyer) messageLines.push(`First-time buyer: yes`);
+
+    const crmResult = await forwardToCRM({
+      firstName: app.firstName,
+      lastName: app.lastName,
+      email: app.email,
+      phone: app.phone,
+      source: "apply_form",
+      message: messageLines.join("\n"),
+      smsConsent: false,
+      loanType: LOAN_TYPE_LABELS[app.loanPurpose] || app.loanPurpose,
+    });
 
     return NextResponse.json({
       success: true,
       referenceNumber,
-      persisted: applicationId !== null,
+      forwarded: crmResult.status === "sent",
     });
   } catch (err) {
     console.error("/api/applications error:", err);
