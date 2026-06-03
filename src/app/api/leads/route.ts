@@ -43,6 +43,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Lead received successfully",
       forwarded: crmResult.status === "sent",
+      crmStatus: crmResult.status,
+      crmDetail: crmResult.response,
     });
   } catch (err) {
     console.error("/api/leads error:", err);
